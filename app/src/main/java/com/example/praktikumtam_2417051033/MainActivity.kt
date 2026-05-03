@@ -24,7 +24,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
 import com.example.praktikumtam_2417051033.model.*
+import com.example.praktikumtam_2417051033.network.RetrofitClient
 import com.example.praktikumtam_2417051033.ui.theme.*
 
 class MainActivity : ComponentActivity() {
@@ -42,56 +44,101 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
+    var journals by remember { mutableStateOf<List<Lifestyle>>(emptyList()) }
     NavHost(navController = navController, startDestination = "home") {
-
         composable("home") {
-            JournalScreen(navController)
+            JournalScreen(navController) {
+                journals = it
+            }
         }
-
         composable("detail/{title}") { backStackEntry ->
             val title = backStackEntry.arguments?.getString("title")
-            val journal = Lifestyledum.dummyLs.find { it.title == title }
-
+            val journal = journals.find { it.title == title }
             journal?.let {
                 DetailScreen(it, navController)
             }
         }
     }
 }
-
 @Composable
-fun JournalScreen(navController: NavController) {
-    val journals = Lifestyledum.dummyLs
+fun JournalScreen(
+    navController: NavController,
+    onLoaded: (List<Lifestyle>) -> Unit
+) {
+    var journals by remember { mutableStateOf<List<Lifestyle>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isError by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        item {
-            Text("Journal.", style = MaterialTheme.typography.headlineLarge)
-            Text(
-                "Praktikum Teknologi Aplikasi Mobile",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(journals.take(3)) { journal ->
-                    JournalRowItem(journal, navController)
-                }
+    LaunchedEffect(Unit) {
+        try {
+            journals = RetrofitClient.instance.getLifestyles()
+            onLoaded(journals)
+            isLoading = false
+            isError = false
+        } catch (e: Exception) {
+            isLoading = false
+            isError = true
+        }
+    }
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
 
-        items(journals) { journal ->
-            JournalItem(journal, navController)
+        isError -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Gagal Memuat Data",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.Red
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Periksa koneksi internet kamu",
+                        color = Color.Gray
+                    )
+                }
+            }
+        }
+        else -> {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                item {
+                    Text("Journal.", style = MaterialTheme.typography.headlineLarge)
+                    Text(
+                        "Praktikum Teknologi Aplikasi Mobile",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(journals.take(3)) { journal ->
+                            JournalRowItem(journal, navController)
+                        }
+                    }
+                }
+                items(journals) { journal ->
+                    JournalItem(journal, navController)
+                }
+            }
         }
     }
 }
-
 @Composable
 fun JournalRowItem(journal: Lifestyle, navController: NavController) {
     Card(
@@ -102,23 +149,22 @@ fun JournalRowItem(journal: Lifestyle, navController: NavController) {
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column {
-            Image(
-                painter = painterResource(journal.imageRes),
+            AsyncImage(
+                model = journal.imageUrl,
                 contentDescription = journal.title,
+                placeholder = painterResource(R.drawable.morning),
+                error = painterResource(R.drawable.morning),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .height(100.dp)
                     .fillMaxWidth()
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 journal.title,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
-
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
@@ -127,7 +173,6 @@ fun JournalRowItem(journal: Lifestyle, navController: NavController) {
 @Composable
 fun JournalItem(journal: Lifestyle, navController: NavController) {
     var isHappy by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -137,15 +182,16 @@ fun JournalItem(journal: Lifestyle, navController: NavController) {
     ) {
         Column {
             Box {
-                Image(
-                    painter = painterResource(journal.imageRes),
+                AsyncImage(
+                    model = journal.imageUrl,
                     contentDescription = journal.title,
+                    placeholder = painterResource(R.drawable.morning),
+                    error = painterResource(R.drawable.morning),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
                 )
-
                 IconButton(
                     onClick = { isHappy = !isHappy },
                     modifier = Modifier
@@ -164,13 +210,10 @@ fun JournalItem(journal: Lifestyle, navController: NavController) {
                     )
                 }
             }
-
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(journal.title, style = MaterialTheme.typography.titleMedium)
                 Text("${journal.date} | ${journal.mood}")
-
                 Spacer(modifier = Modifier.height(12.dp))
-
                 Button(
                     onClick = {
                         navController.navigate("detail/${journal.title}")
@@ -186,10 +229,7 @@ fun JournalItem(journal: Lifestyle, navController: NavController) {
 }
 
 @Composable
-fun DetailScreen(
-    journal: Lifestyle,
-    navController: NavController
-) {
+fun DetailScreen(journal: Lifestyle, navController: NavController) {
     var isHappy by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -203,15 +243,16 @@ fun DetailScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             Box {
-                Image(
-                    painter = painterResource(journal.imageRes),
+                AsyncImage(
+                    model = journal.imageUrl,
                     contentDescription = journal.title,
+                    placeholder = painterResource(R.drawable.morning),
+                    error = painterResource(R.drawable.morning),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(250.dp)
                 )
-
                 IconButton(
                     onClick = { isHappy = !isHappy },
                     modifier = Modifier
@@ -230,17 +271,12 @@ fun DetailScreen(
                     )
                 }
             }
-
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(journal.title, style = MaterialTheme.typography.titleLarge)
                 Text("${journal.date} | ${journal.mood}")
-
                 Spacer(modifier = Modifier.height(10.dp))
-
                 Text(journal.note)
-
                 Spacer(modifier = Modifier.height(20.dp))
-
                 Button(
                     onClick = {
                         coroutineScope.launch {
@@ -267,9 +303,7 @@ fun DetailScreen(
                         Text("Simpan Jurnal")
                     }
                 }
-
                 Spacer(modifier = Modifier.height(10.dp))
-
                 Button(
                     onClick = { navController.popBackStack() },
                     modifier = Modifier.fillMaxWidth(),
@@ -279,7 +313,6 @@ fun DetailScreen(
                 }
             }
         }
-
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.Center)
