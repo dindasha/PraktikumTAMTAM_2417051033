@@ -89,7 +89,6 @@ fun JournalScreen(
                 CircularProgressIndicator()
             }
         }
-
         isError -> {
             Box(
                 modifier = Modifier
@@ -227,7 +226,6 @@ fun JournalItem(journal: Lifestyle, navController: NavController) {
         }
     }
 }
-
 @Composable
 fun DetailScreen(journal: Lifestyle, navController: NavController) {
     var isHappy by remember { mutableStateOf(false) }
@@ -236,7 +234,6 @@ fun DetailScreen(journal: Lifestyle, navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     Box(modifier = Modifier.fillMaxSize()) {
-
         Column(
             modifier = Modifier
                 .fillMaxSize()

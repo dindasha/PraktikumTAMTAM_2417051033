@@ -6,4 +6,5 @@ import retrofit2.http.GET
 interface ApiService {
     @GET("Lifestyle_data.json")
     suspend fun getLifestyles(): List<Lifestyle>
+
 }
