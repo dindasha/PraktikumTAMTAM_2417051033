@@ -25,9 +25,9 @@ import androidx.navigation.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
-import com.example.praktikumtam_2417051033.model.*
-import com.example.praktikumtam_2417051033.network.RetrofitClient
+import com.example.praktikumtam_2417051033.data.model.*
 import com.example.praktikumtam_2417051033.ui.theme.*
+import com.example.praktikumtam_2417051033.data.repository.LifestyleRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,17 +68,19 @@ fun JournalScreen(
     var journals by remember { mutableStateOf<List<Lifestyle>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isError by remember { mutableStateOf(false) }
+    val repository = remember { LifestyleRepository() }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         try {
-            journals = RetrofitClient.instance.getLifestyles()
+            journals = repository.getLifestyles()
             onLoaded(journals)
-            isLoading = false
-            isError = false
-        } catch (e: Exception) {
-            isLoading = false
+            isError = journals.isEmpty()
+        } catch (_: Exception) {
             isError = true
         }
+
+        isLoading = false
     }
     when {
         isLoading -> {
@@ -104,7 +106,7 @@ fun JournalScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Periksa koneksi internet kamu",
+                        text = "Cek koneksi internet",
                         color = Color.Gray
                     )
                 }
